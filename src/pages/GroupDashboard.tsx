@@ -5,7 +5,7 @@ import { calculateBalances, calculateSettlements, formatCurrency, CATEGORY_ICONS
 import { Avatar } from '../components/Avatar';
 import {
   Wallet, Receipt, Trash2, ArrowRight,
-  TrendingUp, Users,
+  TrendingUp, Users, UserPlus, Check, X,
   ShoppingBag, ArrowLeft, AlertCircle,
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -19,9 +19,14 @@ export const GroupDashboard: React.FC = () => {
   const deleteExpense = useStore((s) => s.deleteExpense);
   const deleteAdvance = useStore((s) => s.deleteAdvance);
   const deleteGroup = useStore((s) => s.deleteGroup);
+  const addMember = useStore((s) => s.addMember);
+  const removeMember = useStore((s) => s.removeMember);
 
   const [tab, setTab] = useState<Tab>('expenses');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAddMember, setShowAddMember] = useState(false);
+  const [newMemberName, setNewMemberName] = useState('');
+  const [memberError, setMemberError] = useState('');
 
   if (!group) {
     return (
@@ -43,6 +48,18 @@ export const GroupDashboard: React.FC = () => {
   const handleDeleteGroup = () => {
     deleteGroup(group.id);
     navigate('/');
+  };
+
+  const handleAddMember = () => {
+    const name = newMemberName.trim();
+    if (!name) return setMemberError('Enter a name');
+    if (group.members.some((m) => m.name.toLowerCase() === name.toLowerCase())) {
+      return setMemberError('Member already exists');
+    }
+    addMember(group.id, name);
+    setNewMemberName('');
+    setMemberError('');
+    setShowAddMember(false);
   };
 
   return (
@@ -95,20 +112,93 @@ export const GroupDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Members row */}
+      {/* Members section */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 mb-6">
-        <div className="flex items-center gap-2 mb-3">
-          <Users size={16} className="text-green-600" />
-          <span className="text-sm font-semibold text-gray-700">Members</span>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Users size={16} className="text-green-600" />
+            <span className="text-sm font-semibold text-gray-700">
+              Members ({group.members.length})
+            </span>
+          </div>
+          <button
+            onClick={() => { setShowAddMember((v) => !v); setMemberError(''); setNewMemberName(''); }}
+            className={`flex items-center gap-1 text-sm font-medium px-3 py-1.5 rounded-lg transition-colors ${
+              showAddMember
+                ? 'bg-gray-100 text-gray-500'
+                : 'bg-green-50 text-green-700 hover:bg-green-100'
+            }`}
+          >
+            {showAddMember ? <><X size={14} /> Cancel</> : <><UserPlus size={14} /> Add Member</>}
+          </button>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {group.members.map((m) => (
-            <div key={m.id} className="flex items-center gap-2 bg-gray-50 rounded-full px-3 py-1.5">
-              <Avatar name={m.name} color={m.color} size="sm" />
-              <span className="text-sm font-medium text-gray-700">{m.name}</span>
+
+        {/* Add member inline form */}
+        {showAddMember && (
+          <div className="mb-3 flex gap-2 items-start">
+            <div className="flex-1">
+              <input
+                type="text"
+                value={newMemberName}
+                onChange={(e) => { setNewMemberName(e.target.value); setMemberError(''); }}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddMember()}
+                placeholder="Enter member name…"
+                autoFocus
+                className="w-full px-3 py-2 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-400 text-sm"
+              />
+              {memberError && <p className="text-red-500 text-xs mt-1 ml-1">{memberError}</p>}
             </div>
-          ))}
+            <button
+              onClick={handleAddMember}
+              className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-colors shrink-0"
+            >
+              <Check size={14} /> Add
+            </button>
+          </div>
+        )}
+
+        {/* Member chips */}
+        <div className="flex flex-wrap gap-2">
+          {group.members.map((m) => {
+            const isUsed =
+              group.expenses.some((e) => e.paidBy === m.id || e.splitAmong.includes(m.id)) ||
+              group.advances.some((a) => a.paidBy === m.id);
+            return (
+              <div
+                key={m.id}
+                className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-full pl-1 pr-2 py-1 group/chip"
+              >
+                <Avatar name={m.name} color={m.color} size="sm" />
+                <span className="text-sm font-medium text-gray-700">{m.name}</span>
+                {!isUsed ? (
+                  <button
+                    onClick={() => removeMember(group.id, m.id)}
+                    title="Remove member"
+                    className="ml-1 text-gray-300 hover:text-red-400 transition-colors opacity-0 group-hover/chip:opacity-100 focus:opacity-100"
+                  >
+                    <X size={13} />
+                  </button>
+                ) : (
+                  <span
+                    title="Can't remove — member has expenses"
+                    className="ml-1 text-gray-200 cursor-not-allowed opacity-0 group-hover/chip:opacity-100"
+                  >
+                    <X size={13} />
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
+
+        {group.members.some((m) =>
+          group.expenses.some((e) => e.paidBy === m.id || e.splitAmong.includes(m.id)) ||
+          group.advances.some((a) => a.paidBy === m.id)
+        ) && (
+          <p className="text-xs text-gray-400 mt-2">
+            💡 Members with expenses cannot be removed
+          </p>
+        )}
       </div>
 
       {/* Settlements (if any) */}
