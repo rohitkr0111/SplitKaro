@@ -1,5 +1,3 @@
-// Data models for SplitKaro
-
 export interface Member {
   id: string;
   name: string;
@@ -11,9 +9,9 @@ export interface Expense {
   groupId: string;
   title: string;
   amount: number;
-  paidBy: string; // member id
-  splitAmong: string[]; // member ids
-  date: string; // ISO string
+  paidBy: string;
+  splitAmong: string[];
+  date: string;
   category: ExpenseCategory;
   note?: string;
 }
@@ -21,10 +19,10 @@ export interface Expense {
 export interface AdvancePayment {
   id: string;
   groupId: string;
-  paidBy: string; // member id
+  paidBy: string;
   amount: number;
   note: string;
-  date: string; // ISO string
+  date: string;
 }
 
 export interface Group {
@@ -35,7 +33,8 @@ export interface Group {
   members: Member[];
   expenses: Expense[];
   advances: AdvancePayment[];
-  createdAt: string; // ISO string
+  settledPairs: string[]; // "fromId->toId" pairs marked as settled
+  createdAt: string;
 }
 
 export type ExpenseCategory =
@@ -50,16 +49,23 @@ export type ExpenseCategory =
 export interface Balance {
   memberId: string;
   memberName: string;
-  totalPaid: number;       // actual cash paid (expenses + advances)
-  totalShare: number;      // share of expenses they owe
-  advancePaid: number;     // total advance money given
-  netBalance: number;      // positive = owed money, negative = owes money
+  totalPaid: number;
+  totalShare: number;
+  advancePaid: number;
+  netBalance: number;
 }
 
 export interface Settlement {
-  from: string;     // member id who pays
+  from: string;
   fromName: string;
-  to: string;       // member id who receives
+  to: string;
   toName: string;
   amount: number;
+  key: string; // "fromId->toId"
+}
+
+export interface Toast {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
 }

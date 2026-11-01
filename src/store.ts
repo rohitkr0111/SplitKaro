@@ -5,20 +5,17 @@ import type { Group, Member, Expense, AdvancePayment } from './types';
 
 interface StoreState {
   groups: Group[];
-  // Group actions
   createGroup: (name: string, description: string, emoji: string, memberNames: string[]) => string;
   updateGroup: (groupId: string, updates: Partial<Pick<Group, 'name' | 'description' | 'emoji'>>) => void;
   deleteGroup: (groupId: string) => void;
-  // Member actions
   addMember: (groupId: string, name: string) => void;
   removeMember: (groupId: string, memberId: string) => void;
-  // Expense actions
   addExpense: (groupId: string, expense: Omit<Expense, 'id' | 'groupId'>) => void;
   updateExpense: (groupId: string, expenseId: string, updates: Partial<Omit<Expense, 'id' | 'groupId'>>) => void;
   deleteExpense: (groupId: string, expenseId: string) => void;
-  // Advance actions
   addAdvance: (groupId: string, advance: Omit<AdvancePayment, 'id' | 'groupId'>) => void;
   deleteAdvance: (groupId: string, advanceId: string) => void;
+  toggleSettledPair: (groupId: string, key: string) => void;
 }
 
 const MEMBER_COLORS = [
@@ -42,42 +39,23 @@ export const useStore = create<StoreState>()(
         set((state) => ({
           groups: [
             ...state.groups,
-            {
-              id: groupId,
-              name,
-              description,
-              emoji,
-              members,
-              expenses: [],
-              advances: [],
-              createdAt: new Date().toISOString(),
-            },
+            { id: groupId, name, description, emoji, members, expenses: [], advances: [], settledPairs: [], createdAt: new Date().toISOString() },
           ],
         }));
         return groupId;
       },
 
       updateGroup: (groupId, updates) =>
-        set((state) => ({
-          groups: state.groups.map((g) =>
-            g.id === groupId ? { ...g, ...updates } : g
-          ),
-        })),
+        set((state) => ({ groups: state.groups.map((g) => g.id === groupId ? { ...g, ...updates } : g) })),
 
       deleteGroup: (groupId) =>
-        set((state) => ({
-          groups: state.groups.filter((g) => g.id !== groupId),
-        })),
+        set((state) => ({ groups: state.groups.filter((g) => g.id !== groupId) })),
 
       addMember: (groupId, name) =>
         set((state) => ({
           groups: state.groups.map((g) => {
             if (g.id !== groupId) return g;
-            const newMember: Member = {
-              id: uuidv4(),
-              name: name.trim(),
-              color: MEMBER_COLORS[g.members.length % MEMBER_COLORS.length],
-            };
+            const newMember: Member = { id: uuidv4(), name: name.trim(), color: MEMBER_COLORS[g.members.length % MEMBER_COLORS.length] };
             return { ...g, members: [...g.members, newMember] };
           }),
         })),
@@ -89,12 +67,7 @@ export const useStore = create<StoreState>()(
             return {
               ...g,
               members: g.members.filter((m) => m.id !== memberId),
-              expenses: g.expenses.filter(
-                (e) => e.paidBy !== memberId
-              ).map((e) => ({
-                ...e,
-                splitAmong: e.splitAmong.filter((id) => id !== memberId),
-              })),
+              expenses: g.expenses.filter((e) => e.paidBy !== memberId).map((e) => ({ ...e, splitAmong: e.splitAmong.filter((id) => id !== memberId) })),
               advances: g.advances.filter((a) => a.paidBy !== memberId),
             };
           }),
@@ -102,63 +75,49 @@ export const useStore = create<StoreState>()(
 
       addExpense: (groupId, expense) =>
         set((state) => ({
-          groups: state.groups.map((g) => {
-            if (g.id !== groupId) return g;
-            return {
-              ...g,
-              expenses: [
-                ...g.expenses,
-                { ...expense, id: uuidv4(), groupId },
-              ],
-            };
-          }),
+          groups: state.groups.map((g) =>
+            g.id !== groupId ? g : { ...g, expenses: [...g.expenses, { ...expense, id: uuidv4(), groupId }] }
+          ),
         })),
 
       updateExpense: (groupId, expenseId, updates) =>
         set((state) => ({
-          groups: state.groups.map((g) => {
-            if (g.id !== groupId) return g;
-            return {
-              ...g,
-              expenses: g.expenses.map((e) =>
-                e.id === expenseId ? { ...e, ...updates } : e
-              ),
-            };
-          }),
+          groups: state.groups.map((g) =>
+            g.id !== groupId ? g : { ...g, expenses: g.expenses.map((e) => e.id === expenseId ? { ...e, ...updates } : e) }
+          ),
         })),
 
       deleteExpense: (groupId, expenseId) =>
         set((state) => ({
-          groups: state.groups.map((g) => {
-            if (g.id !== groupId) return g;
-            return {
-              ...g,
-              expenses: g.expenses.filter((e) => e.id !== expenseId),
-            };
-          }),
+          groups: state.groups.map((g) =>
+            g.id !== groupId ? g : { ...g, expenses: g.expenses.filter((e) => e.id !== expenseId) }
+          ),
         })),
 
       addAdvance: (groupId, advance) =>
         set((state) => ({
-          groups: state.groups.map((g) => {
-            if (g.id !== groupId) return g;
-            return {
-              ...g,
-              advances: [
-                ...g.advances,
-                { ...advance, id: uuidv4(), groupId },
-              ],
-            };
-          }),
+          groups: state.groups.map((g) =>
+            g.id !== groupId ? g : { ...g, advances: [...g.advances, { ...advance, id: uuidv4(), groupId }] }
+          ),
         })),
 
       deleteAdvance: (groupId, advanceId) =>
         set((state) => ({
+          groups: state.groups.map((g) =>
+            g.id !== groupId ? g : { ...g, advances: g.advances.filter((a) => a.id !== advanceId) }
+          ),
+        })),
+
+      toggleSettledPair: (groupId, key) =>
+        set((state) => ({
           groups: state.groups.map((g) => {
             if (g.id !== groupId) return g;
+            const settled = g.settledPairs ?? [];
             return {
               ...g,
-              advances: g.advances.filter((a) => a.id !== advanceId),
+              settledPairs: settled.includes(key)
+                ? settled.filter((k) => k !== key)
+                : [...settled, key],
             };
           }),
         })),

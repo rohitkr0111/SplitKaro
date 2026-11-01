@@ -79,6 +79,7 @@ export function calculateSettlements(balances: Balance[]): Settlement[] {
         to: creditor.memberId,
         toName: creditor.memberName,
         amount: Math.round(amount * 100) / 100,
+        key: `${debtor.memberId}->${creditor.memberId}`,
       });
     }
 
