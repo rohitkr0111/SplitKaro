@@ -221,15 +221,15 @@ export const GroupDashboard: React.FC = () => {
   const maxBalance = Math.max(...balances.map((b) => Math.abs(b.netBalance)), 1);
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-6 animate-fade-in">
+    <div className="group-dashboard max-w-4xl mx-auto px-4 py-6 animate-fade-in">
 
       {/* ── Header ── */}
-      <div className="flex items-start justify-between mb-5 gap-4">
-        <div className="flex items-center gap-3">
+      <div className="group-header flex items-start justify-between mb-5 gap-4">
+        <div className="group-identity flex items-center gap-3">
           <button onClick={() => navigate('/')} className="p-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
             <ArrowLeft size={18} />
           </button>
-          <div className="flex items-center gap-3">
+          <div className="group-title-row flex items-center gap-3">
             <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-2xl border border-slate-100 shrink-0">
               {group.emoji}
             </div>
@@ -239,7 +239,7 @@ export const GroupDashboard: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="group-header-actions flex items-center gap-2 shrink-0">
           <Link to={`/groups/${group.id}/personal-bills`}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 text-sm font-semibold transition-colors">
             <span>📨</span> Send Bills
@@ -256,7 +256,7 @@ export const GroupDashboard: React.FC = () => {
       </div>
 
       {/* ── Stats row ── */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
+      <div className="group-stats grid grid-cols-3 gap-3 mb-5">
         <div className="card p-3 text-center">
           <div className="text-xs text-gray-400 mb-0.5">Members</div>
           <div className="text-xl font-bold text-gray-800">{group.members.length}</div>
@@ -365,6 +365,7 @@ export const GroupDashboard: React.FC = () => {
               const from = memberMap[s.from];
               return (
                 <div key={s.key}
+                  data-settlement-row
                   className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all ${
                     isSettled ? 'bg-white/60 opacity-60' : 'bg-white shadow-sm'
                   }`}>
@@ -398,7 +399,7 @@ export const GroupDashboard: React.FC = () => {
       )}
 
       {/* ── Action buttons ── */}
-      <div className="grid grid-cols-2 gap-3 mb-5">
+      <div className="group-primary-actions grid grid-cols-2 gap-3 mb-5">
         <Link to={`/groups/${group.id}/expenses/new`}
           className="flex items-center justify-center gap-2 text-white py-3 rounded-2xl font-semibold text-sm transition-all shadow-sm"
           style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 2px 8px rgba(22,163,74,.3)' }}>
@@ -414,7 +415,7 @@ export const GroupDashboard: React.FC = () => {
       {/* ── Send Personal Bills banner ── */}
       <Link
         to={`/groups/${group.id}/personal-bills`}
-        className="flex items-center gap-3 w-full mb-5 px-4 py-3.5 rounded-2xl border-2 border-dashed border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300 transition-all"
+        className="group-bill-link flex items-center gap-3 w-full mb-5 px-4 py-3.5 rounded-2xl border-2 border-dashed border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300 transition-all"
       >
         <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white text-lg shrink-0">
           📨
@@ -431,7 +432,7 @@ export const GroupDashboard: React.FC = () => {
       </Link>
 
       {/* ── Tabs ── */}
-      <div className="flex border-b border-gray-100 mb-5 gap-1">
+      <div className="group-tabs flex border-b border-gray-100 mb-5 gap-1">
         {([
           { key: 'expenses', label: 'Expenses', count: group.expenses.length },
           { key: 'advances', label: 'Advances', count: group.advances.length },
@@ -440,7 +441,7 @@ export const GroupDashboard: React.FC = () => {
           <button
             key={key}
             onClick={() => setTab(key)}
-            className={`relative px-4 py-3 text-sm font-semibold transition-colors ${
+            className={`group-tab relative px-4 py-3 text-sm font-semibold transition-colors ${
               tab === key ? 'text-green-700 tab-active' : 'text-gray-400 hover:text-gray-600'
             }`}>
             {label}
@@ -458,7 +459,7 @@ export const GroupDashboard: React.FC = () => {
         <div>
           {/* Search + filter row */}
           {group.expenses.length > 0 && (
-            <div className="flex gap-2 mb-4">
+            <div className="group-search-row flex gap-2 mb-4">
               <div className="flex-1 relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
@@ -527,7 +528,7 @@ export const GroupDashboard: React.FC = () => {
                   <div key={exp.id} className="card expense-item overflow-hidden">
                     {/* Main row */}
                     <div
-                      className="flex items-center gap-3 p-4 cursor-pointer"
+                      className="group-expense-row flex items-center gap-3 p-4 cursor-pointer"
                       onClick={() => setExpandedExpense(isExpanded ? null : exp.id)}>
                       {/* Category icon */}
                       <div className="w-10 h-10 rounded-xl bg-slate-50 flex items-center justify-center text-xl shrink-0 border border-slate-100">
@@ -635,7 +636,7 @@ export const GroupDashboard: React.FC = () => {
                 .map((adv) => {
                   const payer = memberMap[adv.paidBy];
                   return (
-                    <div key={adv.id} className="card p-4 flex items-center gap-3 expense-item">
+                    <div key={adv.id} className="card p-4 flex items-center gap-3 expense-item group-advance-row">
                       <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-xl shrink-0 border border-amber-100">💰</div>
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-gray-900 text-sm">{adv.note}</div>
