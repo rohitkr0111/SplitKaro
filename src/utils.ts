@@ -249,10 +249,13 @@ export function generatePersonalBill(group: Group, memberId: string): string {
 export function generateTextReceipt(group: Group): string {
   const balances = calculateBalances(group);
   const settlements = calculateSettlements(balances);
+  const settledPairs = group.settledPairs ?? [];
+  const completedSettlements = settlements.filter((settlement) => settledPairs.includes(settlement.key));
+  const pendingSettlements = settlements.filter((settlement) => !settledPairs.includes(settlement.key));
   const totalExpenses = group.expenses.reduce((s, e) => s + e.amount, 0);
   const totalAdvances = group.advances.reduce((s, a) => s + a.amount, 0);
   const memberMap = Object.fromEntries(group.members.map((m) => [m.id, m]));
-  const isSettled = settlements.length === 0;
+  const isSettled = pendingSettlements.length === 0;
   const now = dateFnsFormat(new Date(), 'dd MMM yyyy, hh:mm a');
 
   const lines: string[] = [];
@@ -272,24 +275,34 @@ export function generateTextReceipt(group: Group): string {
   lines.push(thin);
   lines.push(`💰 Total Expenses: *${formatCurrency(totalExpenses)}*`);
   if (totalAdvances > 0) lines.push(`🤝 Advance Pool: *${formatCurrency(totalAdvances)}*`);
-  lines.push(`📌 Status: ${isSettled ? '✅ All Settled!' : `⏳ ${settlements.length} payment(s) pending`}`);
+  lines.push(`📌 Status: ${isSettled ? '✅ All Settled!' : `⏳ ${pendingSettlements.length} payment(s) pending`}`);
+  if (completedSettlements.length > 0) {
+    lines.push(`✅ Payments marked paid: ${completedSettlements.length}`);
+  }
   lines.push('');
 
   // Per-member breakdown
   lines.push(`👤 *INDIVIDUAL BREAKDOWN*`);
   lines.push(thin);
   for (const b of balances) {
-    const isPos = b.netBalance > 0.01;
-    const isNeg = b.netBalance < -0.01;
+    const settledPaid = completedSettlements
+      .filter((settlement) => settlement.from === b.memberId)
+      .reduce((sum, settlement) => sum + settlement.amount, 0);
+    const settledReceived = completedSettlements
+      .filter((settlement) => settlement.to === b.memberId)
+      .reduce((sum, settlement) => sum + settlement.amount, 0);
+    const outstandingBalance = b.netBalance + settledPaid - settledReceived;
+    const isPos = outstandingBalance > 0.01;
+    const isNeg = outstandingBalance < -0.01;
     lines.push(`*${b.memberName}*`);
     lines.push(`  💳 Paid for expenses: ${formatCurrency(b.totalPaid - b.advancePaid)}`);
     if (b.advancePaid > 0) lines.push(`  🤝 Advance given: ${formatCurrency(b.advancePaid)}`);
     lines.push(`  📤 Their share: ${formatCurrency(b.totalShare)}`);
     lines.push(
       isPos
-        ? `  ✅ Gets back: *${formatCurrency(b.netBalance)}*`
+        ? `  ✅ Gets back: *${formatCurrency(outstandingBalance)}*`
         : isNeg
-        ? `  ❌ Should pay: *${formatCurrency(Math.abs(b.netBalance))}*`
+        ? `  ❌ Should pay: *${formatCurrency(Math.abs(outstandingBalance))}*`
         : `  ✅ All squared up`
     );
     lines.push('');
@@ -328,7 +341,10 @@ export function generateTextReceipt(group: Group): string {
   if (isSettled) {
     lines.push(`🎉 Everyone is settled! No payments needed.`);
   } else {
-    for (const s of settlements) {
+    if (completedSettlements.length > 0) {
+      lines.push(`✅ Completed payments: ${completedSettlements.length}`);
+    }
+    for (const s of pendingSettlements) {
       lines.push(`👉 *${s.fromName}* pays *${s.toName}* → *${formatCurrency(s.amount)}*`);
     }
   }

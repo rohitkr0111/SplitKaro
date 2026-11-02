@@ -26,6 +26,9 @@ export const Receipt: React.FC = () => {
 
   const balances = calculateBalances(group);
   const settlements = calculateSettlements(balances);
+  const settledPairs = group.settledPairs ?? [];
+  const completedSettlements = settlements.filter((settlement) => settledPairs.includes(settlement.key));
+  const pendingSettlements = settlements.filter((settlement) => !settledPairs.includes(settlement.key));
   const memberMap = Object.fromEntries(group.members.map((m) => [m.id, m]));
   const totalExpenses = group.expenses.reduce((s, e) => s + e.amount, 0);
   const totalPerPersonShare = group.expenses.reduce(
@@ -33,7 +36,7 @@ export const Receipt: React.FC = () => {
     0,
   );
   const totalAdvances = group.advances.reduce((s, a) => s + a.amount, 0);
-  const isSettled = settlements.length === 0;
+  const isSettled = pendingSettlements.length === 0;
   const generatedAt = format(new Date(), "dd MMM yyyy, hh:mm a");
 
   const handlePrint = () => window.print();
@@ -154,7 +157,7 @@ export const Receipt: React.FC = () => {
             <StatPill label="Participants" value={String(group.members.length)} />
             <StatPill label="Expenses" value={formatCurrency(totalExpenses)} />
             <StatPill label="Advances" value={formatCurrency(totalAdvances)} />
-            <StatPill label="Settlement" value={isSettled ? 'Settled' : `${settlements.length} due`} highlight={!isSettled} />
+            <StatPill label="Settlement" value={isSettled ? 'Settled' : `${pendingSettlements.length} due`} highlight={!isSettled} />
           </div>
           <div className="receipt-meta mt-4 text-green-200 text-xs"><span>Issued {generatedAt}</span><span>Group started {format(new Date(group.createdAt), 'dd MMM yyyy')}</span><span>Original SplitKaro record</span></div>
         </div>
@@ -167,8 +170,15 @@ export const Receipt: React.FC = () => {
 
           {balances.map((b) => {
             const member = memberMap[b.memberId];
-            const isPositive = b.netBalance > 0.01;
-            const isNegative = b.netBalance < -0.01;
+            const settledPaid = completedSettlements
+              .filter((settlement) => settlement.from === b.memberId)
+              .reduce((sum, settlement) => sum + settlement.amount, 0);
+            const settledReceived = completedSettlements
+              .filter((settlement) => settlement.to === b.memberId)
+              .reduce((sum, settlement) => sum + settlement.amount, 0);
+            const outstandingBalance = b.netBalance + settledPaid - settledReceived;
+            const isPositive = outstandingBalance > 0.01;
+            const isNegative = outstandingBalance < -0.01;
 
             // Expenses paid by this member
             const paidExpenses = group.expenses.filter((e) => e.paidBy === b.memberId);
@@ -177,7 +187,7 @@ export const Receipt: React.FC = () => {
             // Expenses this member is part of
             const sharedExpenses = group.expenses.filter((e) => e.splitAmong.includes(b.memberId));
             // Settlements involving this member
-            const memberSettlements = settlements.filter((s) => s.from === b.memberId || s.to === b.memberId);
+            const memberSettlements = pendingSettlements.filter((s) => s.from === b.memberId || s.to === b.memberId);
 
             return (
               <div key={b.memberId} className="receipt-member border border-gray-100 rounded-2xl overflow-hidden">
@@ -188,14 +198,14 @@ export const Receipt: React.FC = () => {
                     <div className="text-xl font-bold text-gray-900">{b.memberName}</div>
                     <div className={`text-sm font-semibold mt-0.5 ${isPositive ? 'text-green-600' : isNegative ? 'text-red-500' : 'text-gray-400'}`}>
                       {isPositive
-                        ? `Receives ${formatCurrency(b.netBalance)}`
+                        ? `Receives ${formatCurrency(outstandingBalance)}`
                         : isNegative
-                        ? `Owes ${formatCurrency(Math.abs(b.netBalance))}`
+                        ? `Owes ${formatCurrency(Math.abs(outstandingBalance))}`
                         : 'Balance settled'}
                     </div>
                   </div>
                   <div className={`text-2xl font-bold ${isPositive ? 'text-green-600' : isNegative ? 'text-red-500' : 'text-gray-400'}`}>
-                    {isPositive ? '+' : ''}{formatCurrency(b.netBalance)}
+                    {isPositive ? '+' : ''}{formatCurrency(outstandingBalance)}
                   </div>
                 </div>
 
@@ -435,11 +445,15 @@ export const Receipt: React.FC = () => {
           {isSettled ? (
             <div className="bg-green-50 border border-green-200 rounded-2xl p-6 text-center">
               <div className="font-bold text-green-700 text-lg">All expenses are settled!</div>
-              <div className="text-green-600 text-sm mt-1">Everyone's accounts are balanced.</div>
+              <div className="text-green-600 text-sm mt-1">
+                {completedSettlements.length > 0
+                  ? `${completedSettlements.length} payment${completedSettlements.length === 1 ? '' : 's'} marked as paid. Everyone is up to date.`
+                  : "Everyone's accounts are balanced."}
+              </div>
             </div>
           ) : (
             <div className="space-y-2">
-              {settlements.map((s, i) => {
+              {pendingSettlements.map((s, i) => {
                 const from = memberMap[s.from];
                 const to = memberMap[s.to];
                 return (
