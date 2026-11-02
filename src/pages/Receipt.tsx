@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../store';
 import { calculateBalances, calculateSettlements, formatCurrency, CATEGORY_ICONS, generateTextReceipt } from '../utils';
@@ -10,18 +10,42 @@ export const Receipt: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const group = useStore((s) => s.groups.find((g) => g.id === id));
-  const receiptRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
   const [shareError, setShareError] = useState('');
   const [pdfTools, setPdfTools] = useState<typeof import('../receiptPdf') | null>(null);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfStatus, setPdfStatus] = useState<'preparing' | 'ready' | 'failed'>('preparing');
 
   useEffect(() => {
     let active = true;
     import('../receiptPdf')
       .then((module) => { if (active) setPdfTools(module); })
-      .catch(() => { if (active) setShareError('PDF export could not be loaded. Use Print and choose Save as PDF.'); });
+      .catch((error: unknown) => {
+        console.error('Receipt PDF module failed to load:', error);
+        if (active) {
+          setPdfStatus('failed');
+          setShareError('PDF export could not be loaded. Use Print and choose Save as PDF.');
+        }
+      });
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    if (!group || !pdfTools) return;
+    setPdfFile(null);
+    setPdfStatus('preparing');
+    try {
+      const pdf = pdfTools.createReceiptPdf(group);
+      const blob = pdf.output('blob');
+      setPdfFile(new File([blob], pdfTools.receiptPdfFilename(group), { type: 'application/pdf' }));
+      setPdfStatus('ready');
+      setShareError('');
+    } catch (error) {
+      console.error('Receipt PDF generation failed:', error);
+      setPdfStatus('failed');
+      setShareError('Could not prepare the PDF. Use Print and choose Save as PDF.');
+    }
+  }, [group, pdfTools]);
 
   if (!group) {
     return (
@@ -52,13 +76,14 @@ export const Receipt: React.FC = () => {
 
   const handleSavePdf = () => {
     try {
-      if (!pdfTools) return;
-      const pdf = pdfTools.createReceiptPdf(group);
-      const blob = pdf.output('blob');
-      const url = URL.createObjectURL(blob);
+      if (!pdfFile) {
+        setShareError('The PDF is still preparing. Please try again in a moment.');
+        return;
+      }
+      const url = URL.createObjectURL(pdfFile);
       const link = document.createElement('a');
       link.href = url;
-      link.download = pdfTools.receiptPdfFilename(group);
+      link.download = pdfFile.name;
       link.rel = 'noopener';
       document.body.appendChild(link);
       link.click();
@@ -94,10 +119,6 @@ export const Receipt: React.FC = () => {
       return;
     }
     try {
-      const pdfBlob = pdfTools?.createReceiptPdf(group).output('blob');
-      const pdfFile = pdfBlob && pdfTools
-        ? new File([pdfBlob], pdfTools.receiptPdfFilename(group), { type: 'application/pdf' })
-        : null;
       if (pdfFile && navigator.canShare?.({ files: [pdfFile] })) {
         await navigator.share({
           title: `${group.emoji} ${group.name} — SplitKaro Receipt`,
@@ -141,11 +162,11 @@ export const Receipt: React.FC = () => {
         <div className="receipt-actions flex flex-wrap gap-2">
           <button
             onClick={handleSavePdf}
-            disabled={!pdfTools}
-            title={!pdfTools ? 'Preparing PDF…' : 'Save receipt as PDF'}
+            disabled={pdfStatus !== 'ready'}
+            title={pdfStatus === 'ready' ? 'Save receipt as PDF' : pdfStatus === 'failed' ? 'PDF export unavailable' : 'Preparing PDF…'}
             className="flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors shadow-sm"
           >
-            <FileDown size={15} /> {pdfTools ? 'Save PDF' : 'Preparing PDF…'}
+            <FileDown size={15} /> {pdfStatus === 'ready' ? 'Save PDF' : pdfStatus === 'failed' ? 'PDF unavailable' : 'Preparing PDF…'}
           </button>
           <button
             onClick={handlePrint}
@@ -193,7 +214,7 @@ export const Receipt: React.FC = () => {
       </div>
 
       {/* Receipt Card */}
-      <div ref={receiptRef} className="receipt-card bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
+      <div className="receipt-card bg-white rounded-3xl shadow-lg border border-gray-100 overflow-hidden">
         {/* Receipt Header */}
         <div className="receipt-header bg-gradient-to-br from-green-600 to-green-800 p-8 text-white">
           <div className="flex items-start justify-between gap-4 mb-4">
