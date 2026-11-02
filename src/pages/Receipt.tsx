@@ -1,9 +1,9 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useStore } from '../store';
 import { calculateBalances, calculateSettlements, formatCurrency, CATEGORY_ICONS, generateTextReceipt } from '../utils';
 import { Avatar } from '../components/Avatar';
-import { ArrowLeft, Printer, ArrowRight, CheckCircle, XCircle, Copy, Share2, Check } from 'lucide-react';
+import { ArrowLeft, Printer, ArrowRight, CheckCircle, XCircle, Copy, Share2, Check, FileDown } from 'lucide-react';
 import { format } from 'date-fns';
 
 export const Receipt: React.FC = () => {
@@ -13,6 +13,15 @@ export const Receipt: React.FC = () => {
   const receiptRef = useRef<HTMLDivElement>(null);
   const [copied, setCopied] = useState(false);
   const [shareError, setShareError] = useState('');
+  const [pdfTools, setPdfTools] = useState<typeof import('../receiptPdf') | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    import('../receiptPdf')
+      .then((module) => { if (active) setPdfTools(module); })
+      .catch(() => { if (active) setShareError('PDF export could not be loaded. Use Print and choose Save as PDF.'); });
+    return () => { active = false; };
+  }, []);
 
   if (!group) {
     return (
@@ -41,6 +50,26 @@ export const Receipt: React.FC = () => {
 
   const handlePrint = () => window.print();
 
+  const handleSavePdf = () => {
+    try {
+      if (!pdfTools) return;
+      const pdf = pdfTools.createReceiptPdf(group);
+      const blob = pdf.output('blob');
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = pdfTools.receiptPdfFilename(group);
+      link.rel = 'noopener';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      setShareError('');
+    } catch {
+      setShareError('Could not create the PDF. Please try Print and choose Save as PDF.');
+    }
+  };
+
   const getTextReceipt = () => generateTextReceipt(group);
 
   const handleCopy = async () => {
@@ -65,10 +94,21 @@ export const Receipt: React.FC = () => {
       return;
     }
     try {
-      await navigator.share({
-        title: `${group.emoji} ${group.name} — SplitKaro Receipt`,
-        text: getTextReceipt(),
-      });
+      const pdfBlob = pdfTools?.createReceiptPdf(group).output('blob');
+      const pdfFile = pdfBlob && pdfTools
+        ? new File([pdfBlob], pdfTools.receiptPdfFilename(group), { type: 'application/pdf' })
+        : null;
+      if (pdfFile && navigator.canShare?.({ files: [pdfFile] })) {
+        await navigator.share({
+          title: `${group.emoji} ${group.name} — SplitKaro Receipt`,
+          files: [pdfFile],
+        });
+      } else {
+        await navigator.share({
+          title: `${group.emoji} ${group.name} — SplitKaro Receipt`,
+          text: getTextReceipt(),
+        });
+      }
     } catch {
       // user cancelled or error — ignore
     }
@@ -96,9 +136,23 @@ export const Receipt: React.FC = () => {
       <div className="receipt-tools bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5 print:hidden">
         <div className="receipt-tools-copy">
           <span className="receipt-tools-title">Receipt actions</span>
-          <span className="receipt-tools-subtitle">Share a copy or save a print ready version.</span>
+          <span className="receipt-tools-subtitle">Download the PDF, share a copy, or print.</span>
         </div>
         <div className="receipt-actions flex flex-wrap gap-2">
+          <button
+            onClick={handleSavePdf}
+            disabled={!pdfTools}
+            title={!pdfTools ? 'Preparing PDF…' : 'Save receipt as PDF'}
+            className="flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors shadow-sm"
+          >
+            <FileDown size={15} /> {pdfTools ? 'Save PDF' : 'Preparing PDF…'}
+          </button>
+          <button
+            onClick={handlePrint}
+            className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors"
+          >
+            <Printer size={15} /> Print
+          </button>
           {/* WhatsApp */}
           <button
             onClick={handleWhatsApp}

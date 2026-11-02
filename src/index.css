@@ -185,3 +185,15 @@ input:focus, select:focus, textarea:focus {
   .group-stats { gap: 6px; }
   .group-stats > .card > div:last-child { font-size: 12px; }
 }
+
+.receipt-tools { border-color: #e2e9e4; }
+.receipt-tools-copy { display: grid; gap: 3px; }
+.receipt-tools-title { color: #26382d; font-size: 13px; font-weight: 700; }
+.receipt-tools-subtitle { color: #7a8980; font-size: 12px; }
+.receipt-actions { align-items: center; }
+.receipt-actions button { min-height: 40px; justify-content: center; white-space: nowrap; }
+@media (max-width: 640px) {
+  .receipt-tools { align-items: flex-start; flex-direction: column; gap: 12px; }
+  .receipt-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .receipt-actions button { width: 100%; padding-inline: 8px; font-size: 12px; }
+}
