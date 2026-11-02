@@ -7,6 +7,7 @@ import { GroupDashboard } from './pages/GroupDashboard';
 import { AddExpense } from './pages/AddExpense';
 import { AddAdvance } from './pages/AddAdvance';
 import { Receipt } from './pages/Receipt';
+import { PersonalBills } from './pages/PersonalBills';
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
               <Route path="/groups/:id/expenses/new" element={<AddExpense />} />
               <Route path="/groups/:id/advance" element={<AddAdvance />} />
               <Route path="/groups/:id/receipt" element={<Receipt />} />
+              <Route path="/groups/:id/personal-bills" element={<PersonalBills />} />
             </Routes>
           </main>
         </div>

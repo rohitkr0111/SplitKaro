@@ -240,6 +240,10 @@ export const GroupDashboard: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <Link to={`/groups/${group.id}/personal-bills`}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 text-sm font-semibold transition-colors">
+            <span>📨</span> Send Bills
+          </Link>
           <Link to={`/groups/${group.id}/receipt`}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-gray-200 text-gray-600 hover:border-green-300 hover:text-green-700 text-sm font-medium transition-colors">
             <Receipt size={14} /> Receipt
@@ -394,18 +398,37 @@ export const GroupDashboard: React.FC = () => {
       )}
 
       {/* ── Action buttons ── */}
-      <div className="flex gap-3 mb-5">
+      <div className="grid grid-cols-2 gap-3 mb-5">
         <Link to={`/groups/${group.id}/expenses/new`}
-          className="flex-1 flex items-center justify-center gap-2 text-white py-3 rounded-2xl font-semibold text-sm transition-all shadow-sm"
+          className="flex items-center justify-center gap-2 text-white py-3 rounded-2xl font-semibold text-sm transition-all shadow-sm"
           style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 2px 8px rgba(22,163,74,.3)' }}>
           <ShoppingBag size={16} /> Add Expense
         </Link>
         <Link to={`/groups/${group.id}/advance`}
-          className="flex-1 flex items-center justify-center gap-2 text-white py-3 rounded-2xl font-semibold text-sm transition-all shadow-sm"
+          className="flex items-center justify-center gap-2 text-white py-3 rounded-2xl font-semibold text-sm transition-all shadow-sm"
           style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)', boxShadow: '0 2px 8px rgba(245,158,11,.3)' }}>
           <Wallet size={16} /> Advance
         </Link>
       </div>
+
+      {/* ── Send Personal Bills banner ── */}
+      <Link
+        to={`/groups/${group.id}/personal-bills`}
+        className="flex items-center gap-3 w-full mb-5 px-4 py-3.5 rounded-2xl border-2 border-dashed border-green-200 bg-green-50 hover:bg-green-100 hover:border-green-300 transition-all"
+      >
+        <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white text-lg shrink-0">
+          📨
+        </div>
+        <div className="flex-1">
+          <div className="font-semibold text-green-800 text-sm">Send Personal Bills</div>
+          <div className="text-green-600 text-xs mt-0.5">
+            WhatsApp each person their own individual bill
+          </div>
+        </div>
+        <div className="text-green-400">
+          <ArrowRight size={16} />
+        </div>
+      </Link>
 
       {/* ── Tabs ── */}
       <div className="flex border-b border-gray-100 mb-5 gap-1">
